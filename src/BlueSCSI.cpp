@@ -702,6 +702,7 @@ void writeDataPhase(int len, const byte* p)
       return;
     }
     LOGHEX(p[i]);
+    LOG(".");
     writeHandshake(p[i]);
   }
   LOGN("");
@@ -719,9 +720,9 @@ void writeDataPhaseSD(uint32_t adds, uint32_t len)
   LOGN(" bytes");
   uint32_t pos = adds * m_img->m_blocksize;
   m_img->m_file.seek(pos);
-  LOG("Address = ");
+  LOG("Address=");
   LOG(adds);
-  LOG(", Pos = ");
+  LOG(", Pos=");
   LOGN(pos);
 
   SCSI_OUT(vMSG,inactive) //  gpio_write(MSG, low);
@@ -857,9 +858,9 @@ void readDataPhaseSD(uint32_t adds, uint32_t len)
   LOG(len);
   LOGN(" bytes");
   uint32_t pos = adds * m_img->m_blocksize;
-  LOG("Address = ");
+  LOG("Address=");
   LOG(adds);
-  LOG(", Pos = ");
+  LOG(", Pos=");
   LOGN(pos);
 
   m_img->m_file.seek(pos);
@@ -967,9 +968,9 @@ byte onReadCapacityCommand(byte pmi)
 byte onReadCommand(uint32_t adds, uint32_t len)
 {
   LOG("-R: Address=");
-  LOGHEX(adds);
+  LOG(adds);
   LOG(", Len=")
-  LOGHEXN(len);
+  LOGN(len);
 
   if(!m_img) return 0x02; // Image file absent
   
@@ -985,9 +986,9 @@ byte onReadCommand(uint32_t adds, uint32_t len)
 byte onWriteCommand(uint32_t adds, uint32_t len)
 {
   LOG("-W: Address=");
-  LOGHEX(adds);
+  LOG(adds);
   LOG(", Len=")
-  LOGHEXN(len);
+  LOGN(len);
   
   if(!m_img) return 0x02; // Image file absent
   
@@ -1196,7 +1197,9 @@ static byte dtc510b_setDriveparameter(void)
  */
 void MsgIn2(int msg)
 {
-  LOGN("MsgIn2");
+  LOG("MsgIn2 : Send (");
+  LOGHEX(msg);
+  LOGN(")");
   SCSI_OUT(vMSG,  active) //  gpio_write(MSG, high);
   SCSI_OUT(vCD ,  active) //  gpio_write(CD, high);
   SCSI_OUT(vIO ,  active) //  gpio_write(IO, high);
@@ -1208,13 +1211,15 @@ void MsgIn2(int msg)
  */
 void MsgOut2()
 {
-  LOGN("MsgOut2");
+  LOG("MsgOut2 : Recv (");
   SCSI_OUT(vMSG,  active) //  gpio_write(MSG, high);
   SCSI_OUT(vCD ,  active) //  gpio_write(CD, high);
   SCSI_OUT(vIO ,inactive) //  gpio_write(IO, low);
   m_msb[m_msc] = readHandshake();
+  LOGHEX(m_msb[m_msc]);
   m_msc++;
   m_msc %= 256;
+  LOGN(")");
 }
 
 /*
@@ -1435,20 +1440,24 @@ void loop()
      goto BusFree;
   }
 
-  LOGN("Sts");
+  LOG("Sts : Send (");
   SCSI_OUT(vMSG,inactive) // gpio_write(MSG, low);
   SCSI_OUT(vCD ,  active) // gpio_write(CD, high);
   SCSI_OUT(vIO ,  active) // gpio_write(IO, high);
   writeHandshake(m_sts);
+  LOG(m_sts);
+  LOGN(")");
   if(m_isBusReset) {
      goto BusFree;
   }
 
-  LOGN("MsgIn");
+  LOG("MsgIn Send (");
   SCSI_OUT(vMSG,  active) // gpio_write(MSG, high);
   SCSI_OUT(vCD ,  active) // gpio_write(CD, high);
   SCSI_OUT(vIO ,  active) // gpio_write(IO, high);
+  LOGHEX(m_msg);
   writeHandshake(m_msg);
+  LOGN(")");
 
 BusFree:
   LOGN("BusFree");
