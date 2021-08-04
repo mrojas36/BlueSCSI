@@ -474,13 +474,13 @@ void setup()
         int lun = 0;
         int blk = 512;
 
-        // Positionally read in and coerase the chars to integers.
+        // Positionally read in and rely on "Integer Promotion" to convert char to int.
         // We only require the minimum and read in the next if provided.
         int file_name_length = file_name.length();
         if(file_name_length > 2) // HD[N]
-          id  = name[HDIMG_ID_POS] - '0' || 0;
+          id  = name[HDIMG_ID_POS] - '0';
         if(file_name_length > 3) // HD0[N]
-          lun = name[HDIMG_LUN_POS] - '0' || 0;
+          lun = name[HDIMG_LUN_POS] - '0';
         int blk1, blk2, blk3, blk4 = 0;
         if(file_name_length > 8) { // HD00_[111]
           blk1 = name[HDIMG_BLK_POS] - '0';
