@@ -42,7 +42,7 @@
 #warning "warning USE_STM32_DMA"
 #endif
 
-#define DEBUG            0      // 0:No debug information output
+#define DEBUG            2      // 0:No debug information output
                                 // 1: Debug information output to USB Serial
                                 // 2: Debug information output to LOG.txt (slow)
 
@@ -71,8 +71,8 @@ SdFs SD;
 #define LOGN(XX)    Serial.println(XX)
 #define LOGHEXN(XX) Serial.println(XX, HEX)
 #elif DEBUG == 2
-#define LOG(XX)     LOG_FILE.println(XX); LOG_FILE.sync();
-#define LOGHEX(XX)  LOG_FILE.println(XX, HEX); LOG_FILE.sync();
+#define LOG(XX)     LOG_FILE.print(XX); LOG_FILE.sync();
+#define LOGHEX(XX)  LOG_FILE.print(XX, HEX); LOG_FILE.sync();
 #define LOGN(XX)    LOG_FILE.println(XX); LOG_FILE.sync();
 #define LOGHEXN(XX) LOG_FILE.println(XX, HEX); LOG_FILE.sync();
 #else
@@ -474,13 +474,13 @@ void setup()
         int lun = 0;
         int blk = 512;
 
-        // Positionally read in and coerase the chars to integers.
+        // Positionally read in and rely on Integer Promotion for chars to integers.
         // We only require the minimum and read in the next if provided.
         int file_name_length = file_name.length();
         if(file_name_length > 2) // HD[N]
-          id  = name[HDIMG_ID_POS] - '0' || 0;
+          id  = name[HDIMG_ID_POS] - '0';
         if(file_name_length > 3) // HD0[N]
-          lun = name[HDIMG_LUN_POS] - '0' || 0;
+          lun = name[HDIMG_LUN_POS] - '0';
         int blk1, blk2, blk3, blk4 = 0;
         if(file_name_length > 8) { // HD00_[111]
           blk1 = name[HDIMG_BLK_POS] - '0';
@@ -583,7 +583,9 @@ void finalizeFileLog() {
   }
   LOG_FILE.println("Finished initialization of SCSI Devices - Entering main loop.");
   LOG_FILE.sync();
+#if DEBUG != 2
   LOG_FILE.close();
+#endif
 }
 
 /*
@@ -688,7 +690,10 @@ inline void writeHandshake(byte d)
  */
 void writeDataPhase(int len, const byte* p)
 {
-  LOGN("DATAIN PHASE");
+  LOG("DATAIN PHASE: ");
+  LOG("Sending ");
+  LOG(len);
+  LOGN(" bytes");
   SCSI_OUT(vMSG,inactive) //  gpio_write(MSG, low);
   SCSI_OUT(vCD ,inactive) //  gpio_write(CD, low);
   SCSI_OUT(vIO ,  active) //  gpio_write(IO, high);
@@ -696,8 +701,10 @@ void writeDataPhase(int len, const byte* p)
     if(m_isBusReset) {
       return;
     }
+    LOGHEX(p[i]);
     writeHandshake(p[i]);
   }
+  LOGN("");
 }
 
 /* 
@@ -706,9 +713,16 @@ void writeDataPhase(int len, const byte* p)
  */
 void writeDataPhaseSD(uint32_t adds, uint32_t len)
 {
-  LOGN("DATAIN PHASE(SD)");
+  LOG("DATAIN PHASE(SD): ");
+  LOG("Sending ");
+  LOG(len);
+  LOGN(" bytes");
   uint32_t pos = adds * m_img->m_blocksize;
   m_img->m_file.seek(pos);
+  LOG("Address = ");
+  LOG(adds);
+  LOG(", Pos = ");
+  LOGN(pos);
 
   SCSI_OUT(vMSG,inactive) //  gpio_write(MSG, low);
   SCSI_OUT(vCD ,inactive) //  gpio_write(CD, low);
@@ -821,7 +835,10 @@ void writeDataPhaseSD(uint32_t adds, uint32_t len)
  */
 void readDataPhase(int len, byte* p)
 {
-  LOGN("DATAOUT PHASE");
+  LOG("DATAOUT PHASE: ");
+  LOG("Receiving ");
+  LOG(len);
+  LOGN(" bytes");
   SCSI_OUT(vMSG,inactive) //  gpio_write(MSG, low);
   SCSI_OUT(vCD ,inactive) //  gpio_write(CD, low);
   SCSI_OUT(vIO ,inactive) //  gpio_write(IO, low);
@@ -835,8 +852,16 @@ void readDataPhase(int len, byte* p)
  */
 void readDataPhaseSD(uint32_t adds, uint32_t len)
 {
-  LOGN("DATAOUT PHASE(SD)");
+  LOG("DATAOUT(SD) PHASE: ");
+  LOG("Receiving ");
+  LOG(len);
+  LOGN(" bytes");
   uint32_t pos = adds * m_img->m_blocksize;
+  LOG("Address = ");
+  LOG(adds);
+  LOG(", Pos = ");
+  LOGN(pos);
+
   m_img->m_file.seek(pos);
   SCSI_OUT(vMSG,inactive) //  gpio_write(MSG, low);
   SCSI_OUT(vCD ,inactive) //  gpio_write(CD, low);
@@ -941,8 +966,9 @@ byte onReadCapacityCommand(byte pmi)
  */
 byte onReadCommand(uint32_t adds, uint32_t len)
 {
-  LOGN("-R");
-  LOGHEXN(adds);
+  LOG("-R: Address=");
+  LOGHEX(adds);
+  LOG(", Len=")
   LOGHEXN(len);
 
   if(!m_img) return 0x02; // Image file absent
@@ -958,8 +984,9 @@ byte onReadCommand(uint32_t adds, uint32_t len)
  */
 byte onWriteCommand(uint32_t adds, uint32_t len)
 {
-  LOGN("-W");
-  LOGHEXN(adds);
+  LOG("-W: Address=");
+  LOGHEX(adds);
+  LOG(", Len=")
   LOGHEXN(len);
   
   if(!m_img) return 0x02; // Image file absent
@@ -1425,6 +1452,7 @@ void loop()
 
 BusFree:
   LOGN("BusFree");
+  LOGN("------------------------");
   m_isBusReset = false;
   //SCSI_OUT(vREQ,inactive) // gpio_write(REQ, low);
   //SCSI_OUT(vMSG,inactive) // gpio_write(MSG, low);
